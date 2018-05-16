@@ -25,21 +25,17 @@ __all__ = ["StreamServer"]
 
 
 class StreamServer():
-    def __init__(self,host=None,port=5000,next_free_port=True,quality=95, nb_output=True, printaddr=True, username=None, password=None):
+    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None):
         if host is None:
             self.host = 'localhost'
         elif host == 'GLOBAL':
             self.host = self.__get_global_ip()
         else:
             self.host = host
-        if username is None:
-            self.username = self.__random_str__()
+        if secret is None:
+            self.secret = self.__random_str__(12)
         else:
-            self.username = self.__filter_str__(username)
-        if password is None:
-            self.password = self.__random_str__()
-        else:
-            self.password = self.__filter_str__(password)
+            self.secret = self.__filter_str__(secret)
 
         self.port = port
         self.threads = []
@@ -57,7 +53,7 @@ class StreamServer():
         regex = re.compile('[^a-zA-Z0-9,\.\_\-]')
         return regex.sub('',s)
     
-    def __random_str__(self,l=8):
+    def __random_str__(self,l=12):
         return ''.join([random.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789') for i in range(l)])
     
     def __del__(self):
@@ -99,7 +95,7 @@ class StreamServer():
         self.__init_sock()
         self.server_process = multiprocessing.Process(target=self.listen,daemon=True)
         self.server_process.start()
-        url = 'http://'+self.username+':'+self.password+'@'+self.host+':'+str(self.port)
+        url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
         if self.printaddr:
             print("Serving at "+url)
         if self.nb_output:
@@ -164,25 +160,11 @@ class StreamServer():
             request += conn.recv(bufsize)
             if b'\r\n\r\n' in request:
                 break
-        if request[:14] != b'GET / HTTP/1.1':
+        if request.split(b'\r\n')[0] != b'GET /'+self.secret.encode()+b' HTTP/1.1':
             #raise RuntimeError("Bad request")
             conn.close()
             return
-        
-        #Require auth
-        auth_ok = False
-        auth_cmp = b'Authorization: Basic ' + base64.b64encode(self.username.encode() + b':' + self.password.encode())
-        for l in request.split(b'\r\n')[:-2]:
-            if l == auth_cmp:
-                auth_ok = True
-        if auth_ok == False:
-            auth_req = 'HTTP/1.1 401 Unauthorized\r\n' +\
-                       'WWW-Authenticate: Basic realm=\"streamserver\"\r\n\r\n'
-            self.send(conn,auth_req.encode())
-            conn.close()
-            return
-            
-        
+                
         #Send header
         header  = 'HTTP/1.1 200 OK\r\n' +\
                   'Content-Type: multipart/x-mixed-replace; boundary=frame\r\n' +\
