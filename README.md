@@ -24,3 +24,8 @@ with streamserver.StreamServer(quality=75,host='localhost',port=5000) as ss:
             break
 cap.release()
 ```
+
+## TODO:
+* HTTP Basic auth
+* HTTPS
+* Multiple streams on same server
