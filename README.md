@@ -6,9 +6,6 @@ cd <project_dir>
 pip install -e .
 ```
 
-## WARNING:
-Anyone with on the network with the IP and port can see your stream.
-
 ## Example:
 ```
 import cv2
@@ -29,6 +26,5 @@ cap.release()
 ```
 
 ## TODO:
-* HTTP Basic auth
-* HTTPS
+* HTTPS?
 * Multiple streams on same server
