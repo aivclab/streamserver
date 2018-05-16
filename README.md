@@ -1,11 +1,14 @@
 # JPEG multipart HTTP streaming server.
 
 ## Install:
-``cd <project_dir>``
-``pip install -e .``
+```
+cd <project_dir>
+pip install -e .
+```
 
 ## Example:
-``import cv2
+```
+import cv2
 import streamserver
 cap = cv2.VideoCapture(0)
 
@@ -19,4 +22,5 @@ with streamserver.StreamServer(quality=75,host='localhost',port=5000) as ss:
         wk = cv2.waitKey(20)
         if wk == ord('q'):
             break
-cap.release()``
+cap.release()
+```
