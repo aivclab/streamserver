@@ -7,25 +7,21 @@ import signal
 import base64
 import random
 import re
+from urllib.parse import parse_qs
+import io
+import imageio
 
 try:
     import IPython.display
     __IPYTHON_DISPLAY__ = True
 except:
     __IPYTHON_DISPLAY__ = False
-try:
-    import cv2 as cv2
-    __OPENCV__ = True
-except:
-    __OPENCV__ = False
-#import io
-#import PIL.Image
 
 __all__ = ["StreamServer"]
 
 
 class StreamServer():
-    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None):
+    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None, fmt='bgr'):
         if host is None:
             self.host = 'localhost'
         elif host == 'GLOBAL':
@@ -37,6 +33,7 @@ class StreamServer():
         else:
             self.secret = self.__filter_str__(secret)
 
+        self.fmt = fmt
         self.port = port
         self.threads = []
         self.server_process = None
@@ -140,11 +137,18 @@ class StreamServer():
             c += n
         return True
     
-    def set_frame(self,frame):
+    def set_frame(self,frame,fmt=None):
         if type(frame) == np.ndarray:
-            if not __OPENCV__:
-                raise ValueError("OpenCV module not loaded. Install OpenCV or use pre-encoded JPEGs.")
-            ret,jpeg = cv2.imencode('.jpg',frame,[int(cv2.IMWRITE_JPEG_QUALITY),self.quality])
+            if fmt is None:
+                fmt = self.fmt
+            if fmt.lower() == "bgr":
+                frame = frame.copy()[:,:,::-1]
+            
+            b = io.BytesIO()
+            imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.quality)
+            b.seek(0)
+            jpeg = b.read()
+            #ret,jpeg = cv2.imencode('.jpg',frame,[int(cv2.IMWRITE_JPEG_QUALITY),self.quality])
         else:
             jpeg = frame
         self.__ns.value = bytes(jpeg)
@@ -160,11 +164,19 @@ class StreamServer():
             request += conn.recv(bufsize)
             if b'\r\n\r\n' in request:
                 break
-        if request.split(b'\r\n')[0] != b'GET /'+self.secret.encode()+b' HTTP/1.1':
-            #raise RuntimeError("Bad request")
+        request = request.split(b'\r\n')[:-2]
+#        if request.split(b'\r\n')[0] != b'GET /'+self.secret.encode()+b' HTTP/1.1':
+        #Bad request?
+        if (request[0][:5] != b'GET /') or (request[0][-9:-1] != b' HTTP/1.'):
             conn.close()
             return
-                
+        else:
+            params = parse_qs(request[0][5:-9].replace(b'?',b''))
+            
+            #TODO 
+            
+            
+        
         #Send header
         header  = 'HTTP/1.1 200 OK\r\n' +\
                   'Content-Type: multipart/x-mixed-replace; boundary=frame\r\n' +\
