@@ -21,7 +21,7 @@ __all__ = ["StreamServer"]
 
 
 class StreamServer():
-    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None, fmt='bgr'):
+    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None, fmt='bgr', encoder="JPEG"):
         if host is None:
             self.host = 'localhost'
         elif host == 'GLOBAL':
@@ -38,6 +38,7 @@ class StreamServer():
         self.threads = []
         self.server_process = None
         self.next_free_port = next_free_port
+        self.encoder = encoder
         self.quality = quality
         self.nb_output = nb_output
         self.printaddr = printaddr
@@ -141,11 +142,21 @@ class StreamServer():
         if type(frame) == np.ndarray:
             if fmt is None:
                 fmt = self.fmt
-            if fmt.lower() == "bgr":
-                frame = frame.copy()[:,:,::-1]
+            
+            #BGR(A) to RGB(A)
+            if fmt.lower() == "bgr" and len(frame.shape) == 3:
+                frame = frame.copy()
+                tmp = frame[:,:,0].copy()
+                frame[:,:,0] = frame[:,:,2].copy()
+                frame[:,:,2] = tmp
+                del tmp
             
             b = io.BytesIO()
-            imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.quality)
+            if self.encoder == "PNG":
+                imageio.imwrite(b,frame,format="PNG-PIL",optimize=False,compress_level=0)
+            else:
+                imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.quality)
+
             b.seek(0)
             jpeg = b.read()
             #ret,jpeg = cv2.imencode('.jpg',frame,[int(cv2.IMWRITE_JPEG_QUALITY),self.quality])
