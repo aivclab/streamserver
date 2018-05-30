@@ -1,4 +1,4 @@
-# JPEG multipart HTTP streaming server.
+# multipart image HTTP streaming server.
 
 ## Install:
 ```
