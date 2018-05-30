@@ -6,5 +6,6 @@ setup(name='streamserver',
       author='Soeren Rasmussen',
       packages=['streamserver'],
       install_requires=['numpy','imageio'],
+      package_data={'': ['viewer_mini.html']},
       include_package_data=True
 )
