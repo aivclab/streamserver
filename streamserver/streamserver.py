@@ -21,7 +21,7 @@ __all__ = ["StreamServer"]
 
 
 class StreamServer():
-    def __init__(self,host=None,port=5000,next_free_port=True,quality=75, nb_output=True, printaddr=True, secret=None, fmt='bgr', encoder="JPEG"):
+    def __init__(self,host=None,port=5000,next_free_port=True, nb_output=True, printaddr=True, secret=None, fmt='bgr', encoder="JPEG", JPEG_quality=75, PNG_compression=1):
         if host is None:
             self.host = 'localhost'
         elif host == 'GLOBAL':
@@ -39,7 +39,8 @@ class StreamServer():
         self.server_process = None
         self.next_free_port = next_free_port
         self.encoder = encoder
-        self.quality = quality
+        self.JPEG_quality = JPEG_quality
+        self.PNG_compression = PNG_compression
         self.nb_output = nb_output
         self.printaddr = printaddr
         
@@ -153,9 +154,9 @@ class StreamServer():
             
             b = io.BytesIO()
             if self.encoder == "PNG":
-                imageio.imwrite(b,frame,format="PNG-PIL",optimize=False,compress_level=0)
+                imageio.imwrite(b,frame,format="PNG-PIL",optimize=False,compress_level=PNG_compression)
             else:
-                imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.quality)
+                imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.JPEG_quality)
 
             b.seek(0)
             jpeg = b.read()
