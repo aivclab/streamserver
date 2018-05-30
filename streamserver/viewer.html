@@ -1,0 +1,35 @@
+<html>
+    <head>
+        <script>
+        var url = '{URL}';
+        var connected = true;
+        testconn = function() {
+            var request = new XMLHttpRequest();
+            try {
+                request.open('GET', url+'?q=ping',false);
+                request.send();
+                if ((request.status == 200) && (connected == false)) {
+                    document.getElementById('image').src='';
+                    document.getElementById('image').src=url;
+                    document.getElementById('status').innerText='Connected';
+                    document.getElementById('status').style='color:green';
+                    connected = true;
+                }
+            } catch(e) {
+                connected = false;
+                document.getElementById('status').innerText='Disconnected';
+                document.getElementById('status').style='color:red';
+            }
+        };
+        setInterval(testconn, 50);
+        </script>
+    </head>
+    <body style="background-color:black;">
+        <center>
+            <img id='image' src='{URL}'><br>
+            <span style='font-family: monospace; font-weight: bold;'>
+                <span id='status' style='color:green;'>Connected</span>
+            </span>
+        </center>
+    </body>
+</html>
