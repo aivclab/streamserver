@@ -154,7 +154,7 @@ class StreamServer():
             
             b = io.BytesIO()
             if self.encoder == "PNG":
-                imageio.imwrite(b,frame,format="PNG-PIL",optimize=False,compress_level=PNG_compression)
+                imageio.imwrite(b,frame,format="PNG-PIL",optimize=False,compress_level=self.PNG_compression)
             else:
                 imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.JPEG_quality)
 

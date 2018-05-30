@@ -15,7 +15,7 @@ cap = cv2.VideoCapture(0)
 ret,_ = cap.read()
 assert ret == True
 
-with streamserver.StreamServer(quality=75,host='localhost',port=5000) as ss:
+with streamserver.StreamServer(JPEG_quality=75,host='localhost',port=5000) as ss:
     while cap.isOpened():
         ret,frame = cap.read()
         ss.set_frame(frame)
