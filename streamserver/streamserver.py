@@ -7,9 +7,10 @@ import signal
 import base64
 import random
 import re
-from urllib.parse import parse_qs
+import urllib.parse
 import io
 import imageio
+import os
 
 try:
     import IPython.display
@@ -177,20 +178,48 @@ class StreamServer():
             if b'\r\n\r\n' in request:
                 break
         request = request.split(b'\r\n')[:-2]
-#        if request.split(b'\r\n')[0] != b'GET /'+self.secret.encode()+b' HTTP/1.1':
         #Bad request?
-        if (request[0][:5] != b'GET /') or (request[0][-9:-1] != b' HTTP/1.'):
+        #regex = re.compile('^GET \/'+re.escape(self.secret)+'((\?[a-zA-Z]*(=[a-zA-Z0-9]*)? )| )HTTP\/1\.(0|1)$')
+        #if not regex.match(request[0].decode()):
+        pr = urllib.parse.urlparse(request[0][5:-9].decode())
+        if (request[0][:5] != b'GET /') or (request[0][-9:-1] != b' HTTP/1.') or (pr.path != self.secret):
             conn.close()
             return
+       
+        #Handle params
+        params = urllib.parse.parse_qs(pr.query)
+        if 'q' in params.keys():
+            query = params['q'][0]
         else:
-            params = parse_qs(request[0][5:-9].replace(b'?',b''))
-            
-            #TODO 
+            query = None
+        
+        if query == 'ping':
+            header = 'HTTP/1.0 200 OK\r\n' +\
+                     'Content-Type: text/html\r\n' +\
+                     'Access-Control-Allow-Origin: *\r\n' +\
+                     'Connection: close\r\n\r\n'
+            self.send(conn,header.encode())
+            conn.close()
+        
+        elif query == 'viewer':
+            header = 'HTTP/1.0 200 OK\r\n' +\
+                     'Content-Type: text/html\r\n' +\
+                     'Connection: close\r\n\r\n'
+            self.send(conn,header.encode())
+            path = os.path.join(os.path.dirname(__file__), 'viewer_mini.html')
+            with open(path,'r') as f:
+                html = f.read()
+            html = html.replace('  ',' ')
+            url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+            html = html.replace('{URL}',url)
+            self.send(conn,html.encode())
+            conn.close()
+
             
             
         
         #Send header
-        header  = 'HTTP/1.1 200 OK\r\n' +\
+        header  = 'HTTP/1.0 200 OK\r\n' +\
                   'Content-Type: multipart/x-mixed-replace; boundary=frame\r\n' +\
                   'Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n' +\
                   'Connection: close\r\n\r\n'
