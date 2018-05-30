@@ -5,5 +5,6 @@ setup(name='streamserver',
       description='Server to stream multi-part images over HTTP',
       author='Soeren Rasmussen',
       packages=['streamserver'],
-      install_requires=['numpy','imageio']
+      install_requires=['numpy','imageio'],
+      include_package_data=True
 )
