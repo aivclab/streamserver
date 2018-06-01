@@ -2,8 +2,7 @@
 
 ## Install:
 ```
-cd <project_dir>
-pip install -e .
+pip install git+ssh://git@bitbucket-server.alexandra.dk:7999/~soren.rasmussen/streamserver.git
 ```
 
 ## Example:
@@ -27,4 +26,4 @@ cap.release()
 
 ## TODO:
 * HTTPS?
-* Multiple streams on same server
+* Multiple streams on same server?
