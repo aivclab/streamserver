@@ -1,16 +1,14 @@
 import socket
 import threading
-import multiprocessing
 import contextlib
 import numpy as np
-import signal
-import base64
 import random
 import re
 import urllib.parse
 import io
 import imageio
 import os
+import time
 
 try:
     import IPython.display
@@ -36,8 +34,8 @@ class StreamServer():
 
         self.fmt = fmt
         self.port = port
-        self.threads = []
-        self.server_process = None
+        self.connection_threads = []
+        self.server_thread = None
         self.next_free_port = next_free_port
         self.encoder = encoder
         self.JPEG_quality = JPEG_quality
@@ -45,9 +43,11 @@ class StreamServer():
         self.nb_output = nb_output
         self.printaddr = printaddr
         
-        self.__ns = multiprocessing.Manager().Namespace()
-        self.__ns.value = b''
-        self.__ev = multiprocessing.Event()
+        self.url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+        
+        self.__ev = threading.Event()
+        self.__frame = b''
+        self.__terminate = True
     
     def __filter_str__(self,s):
         regex = re.compile('[^a-zA-Z0-9,\.\_\-]')
@@ -74,7 +74,7 @@ class StreamServer():
     def __init_sock(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        
+        self.sock.settimeout(.1)
         while self.port < 65535:
             try:
                 self.sock.bind((self.host, self.port))
@@ -92,16 +92,17 @@ class StreamServer():
             raise IOError('No port available.')
     
     def start(self):
+        self.__terminate = False
         self.__init_sock()
-        self.server_process = multiprocessing.Process(target=self.listen,daemon=True)
-        self.server_process.start()
-        url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+        self.server_thread = threading.Thread(target=self.listen,daemon=True)
+        self.server_thread.start()
+        
         if self.printaddr:
-            print("Serving at "+url)
+            print(f"Serving at {self.url}?q=viewer")
         if self.nb_output:
             if __IPYTHON_DISPLAY__ == False:
                 print("Warning: IPython.display not available.")
-            img = IPython.display.Image(url=url)
+            img = IPython.display.Image(url=self.url)
             IPython.display.display(img)
     
     def stop(self):
@@ -110,20 +111,24 @@ class StreamServer():
         except:
             pass
         try:
-            self.server_process.terminate()
-            self.server_process.join()
+            self.__terminate = True
+            self.server_thread.join()
         except:
             pass
         self.sock = None
-        self.server_process = None
+        self.server_thread = None
+        self.connection_threads = []
     
     def listen(self):
-        signal.signal(signal.SIGINT, signal.SIG_IGN) 
         self.sock.listen(5)
-        while True:
-            conn, address = self.sock.accept()
-            t = threading.Thread(target=self.connection, args=(conn,address),daemon=True)
-            self.threads.append(t)
+        while not self.__terminate:
+            try:
+                conn, address = self.sock.accept()
+            except socket.timeout:
+                continue
+            conn.settimeout(None)
+            t = threading.Thread(target=self.connection, args=(conn,address,threading.currentThread()),daemon=True)
+            self.connection_threads.append(t)
             t.start()
             
     def send(self,conn,d):
@@ -160,21 +165,22 @@ class StreamServer():
                 imageio.imwrite(b,frame,format="JPEG-PIL",quality=self.JPEG_quality)
 
             b.seek(0)
-            jpeg = b.read()
-            #ret,jpeg = cv2.imencode('.jpg',frame,[int(cv2.IMWRITE_JPEG_QUALITY),self.quality])
-        else:
-            jpeg = frame
-        self.__ns.value = bytes(jpeg)
+            frame = b.read()
+        self.__frame = bytes(frame)
         self.__ev.set()
         self.__ev.clear()
     
-    def connection(self, conn, address):
+    def connection(self, conn, address, parent):
         bufsize = 1024
         
         #Read request
         request = b''
-        while True:
-            request += conn.recv(bufsize)
+        while parent.is_alive():
+            try:
+                request += conn.recv(bufsize)
+            except:
+                conn.close()
+                return
             if b'\r\n\r\n' in request:
                 break
         request = request.split(b'\r\n')[:-2]
@@ -197,10 +203,14 @@ class StreamServer():
             header = 'HTTP/1.0 200 OK\r\n' +\
                      'Content-Type: text/html\r\n' +\
                      'Access-Control-Allow-Origin: *\r\n' +\
-                     'Connection: close\r\n\r\n'
-            self.send(conn,header.encode())
-            conn.close()
-        
+                     'Connection: keep-alive\r\n\r\n'
+            ret = self.send(conn,header.encode())
+            while ret and parent.is_alive():
+                ret = self.send(conn,b'pong\r\n')
+                time.sleep(.25)
+#            conn.close()
+#            return
+            
         elif query == 'viewer':
             header = 'HTTP/1.0 200 OK\r\n' +\
                      'Content-Type: text/html\r\n' +\
@@ -209,28 +219,27 @@ class StreamServer():
             path = os.path.join(os.path.dirname(__file__), 'viewer_mini.html')
             with open(path,'r') as f:
                 html = f.read()
-            html = html.replace('  ',' ')
-            url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
-            html = html.replace('{URL}',url)
+            html = html.replace('{URL}',self.url)
             self.send(conn,html.encode())
             conn.close()
-
+            return
             
-            
-        
-        #Send header
-        header  = 'HTTP/1.0 200 OK\r\n' +\
-                  'Content-Type: multipart/x-mixed-replace; boundary=frame\r\n' +\
-                  'Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n' +\
-                  'Connection: close\r\n\r\n'
-        self.send(conn,header.encode())
+        else:
+            #Send header
+            header  = 'HTTP/1.0 200 OK\r\n' +\
+                      'Content-Type: multipart/x-mixed-replace; boundary=frame\r\n' +\
+                      'Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0\r\n' +\
+                      'Connection: close\r\n\r\n'
+            ret = self.send(conn,header.encode())
+            if not ret:
+                conn.close()
+                return
 
-        #Contents
-        ret = True
-        frame_header = b'\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n'
-        ret &= self.send(conn,frame_header)
-        while ret:
-            self.__ev.wait()
-            ret &= self.send(conn,self.__ns.value + frame_header)
-        
-        conn.close()
+            #Contents
+            frame_header = b'\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n'
+            ret &= self.send(conn,frame_header)
+            while ret and parent.is_alive():
+                if self.__ev.wait(.25):
+                    ret &= self.send(conn,self.__frame + frame_header)
+            conn.close()
+            return

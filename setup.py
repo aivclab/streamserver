@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='streamserver',
-      version='0.3.0',
+      version='0.3.1',
       description='Server to stream multi-part images over HTTP',
       author='Soeren Rasmussen',
       packages=['streamserver'],
