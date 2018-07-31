@@ -107,17 +107,17 @@ class StreamServer():
             IPython.display.display(img)
     
     def stop(self):
+        self.__terminate = True
         try:
             self.sock.close()
         except:
             pass
         try:
-            self.__terminate = True
             self.server_thread.join()
         except:
             pass
-        self.sock = None
-        self.server_thread = None
+        #self.sock = None
+        #self.server_thread = None
         self.connection_threads = []
     
     def listen(self):
