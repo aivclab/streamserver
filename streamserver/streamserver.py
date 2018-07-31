@@ -43,7 +43,7 @@ class StreamServer():
         self.nb_output = nb_output
         self.printaddr = printaddr
         
-        self.url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+        self.url = ''
         
         self.__ev = threading.Event()
         self.__frame = b''
@@ -90,6 +90,7 @@ class StreamServer():
             self.sock.close()
             self.sock = None
             raise IOError('No port available.')
+        self.url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
     
     def start(self):
         self.__terminate = False
