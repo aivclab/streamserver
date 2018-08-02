@@ -109,15 +109,10 @@ class StreamServer():
     def stop(self):
         self.__terminate = True
         try:
-            self.sock.close()
-        except:
-            pass
-        try:
             self.server_thread.join()
         except:
             pass
-        #self.sock = None
-        #self.server_thread = None
+        self.server_thread = None
         self.connection_threads = []
     
     def listen(self):
@@ -131,6 +126,8 @@ class StreamServer():
             t = threading.Thread(target=self.connection, args=(conn,address,threading.currentThread()),daemon=True)
             self.connection_threads.append(t)
             t.start()
+        self.sock.close()
+        self.sock = None
             
     def send(self,conn,d):
         d = bytes(d)
