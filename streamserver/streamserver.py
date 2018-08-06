@@ -206,8 +206,8 @@ class StreamServer():
             while ret and parent.is_alive():
                 ret = self.send(conn,b'pong\r\n')
                 time.sleep(.25)
-#            conn.close()
-#            return
+            conn.close()
+            return
             
         elif query == 'viewer':
             header = 'HTTP/1.0 200 OK\r\n' +\
