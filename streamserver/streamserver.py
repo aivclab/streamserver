@@ -9,6 +9,8 @@ import io
 import imageio
 import os
 import time
+import ssl as libssl
+from pathlib import Path
 
 try:
     import IPython.display
@@ -19,8 +21,16 @@ except:
 __all__ = ["StreamServer"]
 
 
+def generate_ssl_cert():
+    path = Path(__file__).parent
+    keypath = path / "cert.key"
+    pempath = path / "cert.pem"
+    ret = os.system(f"openssl req -nodes -new -x509  -keyout {keypath} -out {pempath} -subj '/' -days 10000")
+    assert ret==0, "Couldn't create SSL cert"
+    print(f"*** Created self-signed SSL cert in {path}. Consider swapping it with a real cert.")
+
 class StreamServer():
-    def __init__(self,host=None,port=5000,next_free_port=True, nb_output=True, printaddr=True, secret=None, fmt='bgr', encoder="JPEG", JPEG_quality=75, PNG_compression=1):
+    def __init__(self,host=None,port=5000, ssl=True, next_free_port=True, nb_output=True, printaddr=True, secret=None, fmt='bgr', encoder="JPEG", JPEG_quality=75, PNG_compression=1):
         if host is None:
             self.host = 'localhost'
         elif host == 'GLOBAL':
@@ -42,11 +52,26 @@ class StreamServer():
         self.PNG_compression = PNG_compression
         self.nb_output = nb_output
         self.printaddr = printaddr
+       
+
+        self.ssl = ssl
+        if self.ssl:
+            path = Path(__file__).parent
+            keypath = path / "cert.key"
+            pempath = path / "cert.pem"
+            if (keypath.exists() == False) or (pempath.exists() == False):
+                generate_ssl_cert()
+
+            self.sslcontext = libssl.SSLContext(libssl.PROTOCOL_SSLv23)
+            self.sslcontext.load_cert_chain(pempath, keypath)
         
         self.url = ''
         
         self.__ev = threading.Event()
-        self.__frame = b''
+        self.__ev.clear()
+ 
+        self.set_frame(np.zeros((1,1,3),dtype=np.uint8))
+#        self.__frame = b''
         self.__terminate = True
     
     def __filter_str__(self,s):
@@ -90,7 +115,13 @@ class StreamServer():
             self.sock.close()
             self.sock = None
             raise IOError('No port available.')
-        self.url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+        if self.ssl:
+            self.sslsock = self.sslcontext.wrap_socket(self.sock, server_side=True)
+            self.url = 'https://'+self.host+':'+str(self.port)+'/'+self.secret
+        else:
+            self.sslsock = self.sock
+            self.url = 'http://'+self.host+':'+str(self.port)+'/'+self.secret
+
     
     def start(self):
         self.__terminate = False
@@ -116,18 +147,21 @@ class StreamServer():
         self.connection_threads = []
     
     def listen(self):
-        self.sock.listen(5)
+        self.sslsock.listen(5)
         while not self.__terminate:
             try:
-                conn, address = self.sock.accept()
+                conn, address = self.sslsock.accept()
             except socket.timeout:
                 continue
             conn.settimeout(None)
-            t = threading.Thread(target=self.connection, args=(conn,address,threading.currentThread()),daemon=True)
-            self.connection_threads.append(t)
-            t.start()
-        self.sock.close()
+            self.connection_threads = [t for t in self.connection_threads if t.is_alive()]
+            self.connection_threads.append(threading.Thread(target=self.connection, args=(conn,address,threading.currentThread()),daemon=True))
+            self.connection_threads[-1].start()
+        
+        self.sslsock.close()
+#        self.sock.close()
         self.sock = None
+        self.sslsock = None
             
     def send(self,conn,d):
         d = bytes(d)
@@ -174,8 +208,15 @@ class StreamServer():
         #Read request
         request = b''
         while parent.is_alive():
+#            print("reading")
             try:
-                request += conn.recv(bufsize)
+#                print(conn)
+                recv = conn.recv(bufsize)
+                if len(recv) > 0:
+                    request += recv
+                else:
+                    conn.close()
+                    return
             except:
                 conn.close()
                 return
@@ -185,6 +226,9 @@ class StreamServer():
         #Bad request?
         #regex = re.compile('^GET \/'+re.escape(self.secret)+'((\?[a-zA-Z]*(=[a-zA-Z0-9]*)? )| )HTTP\/1\.(0|1)$')
         #if not regex.match(request[0].decode()):
+        if len(request) == 0:
+            conn.close()
+            return
         pr = urllib.parse.urlparse(request[0][5:-9].decode())
         if (request[0][:5] != b'GET /') or (request[0][-9:-1] != b' HTTP/1.') or (pr.path != self.secret):
             conn.close()
@@ -205,6 +249,8 @@ class StreamServer():
             ret = self.send(conn,header.encode())
             while ret and parent.is_alive():
                 ret = self.send(conn,b'pong\r\n')
+                if ret == 0:
+                    break
                 time.sleep(.25)
             conn.close()
             return
@@ -234,10 +280,13 @@ class StreamServer():
                 return
 
             #Contents
-            frame_header = b'\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n'
+            frame_header = str.encode(f'\r\n--frame\r\nContent-Type: image/{self.encoder.lower()}\r\n\r\n')
             ret &= self.send(conn,frame_header)
+            
             while ret and parent.is_alive():
-                if self.__ev.wait(.25):
+                if self.__ev.wait(1) and ret:
+                    ret &= self.send(conn,self.__frame + frame_header)
+                else:
                     ret &= self.send(conn,self.__frame + frame_header)
             conn.close()
             return
