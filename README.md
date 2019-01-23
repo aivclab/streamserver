@@ -24,6 +24,5 @@ with streamserver.StreamServer(JPEG_quality=75,host='localhost',port=5000) as ss
 cap.release()
 ```
 
-## TODO:
-* HTTPS?
-* Multiple streams on same server?
+#TODO:
+* Multiple streams on same server
