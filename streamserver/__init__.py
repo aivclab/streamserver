@@ -1,2 +1,2 @@
-from .streamserver import StreamServer
-__all__ = ["StreamServer"]
+from .streamviewer import StreamServer
+__all__ = ['StreamServer']

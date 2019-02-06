@@ -1,8 +1,13 @@
-# multipart image HTTP streaming server.
+# Multipart Image HTTP Streaming Server.
 
 ## Install:
 ```
 pip install git+ssh://git@bitbucket-server.alexandra.dk:7999/~soren.rasmussen/streamserver.git
+```
+or
+
+```
+pip install streamserver
 ```
 
 ## Example:
@@ -22,6 +27,10 @@ with streamserver.StreamServer(JPEG_quality=75,host='localhost',port=5000) as ss
         if wk == ord('q'):
             break
 cap.release()
+```
+or
+```
+ss-imageio
 ```
 
 ## TODO:
