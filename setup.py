@@ -36,24 +36,6 @@ def get_license():
     return 'Apache License, Version 2.0'
 
 
-def get_classifiers():
-    return [
-        'Development Status :: 4 - Beta',
-        'Environment :: Console',
-        'Intended Audience :: End Users/Desktop',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: Apache Software License',
-        'Operating System :: MacOS :: MacOS X',
-        'Operating System :: Microsoft :: Windows',
-        'Operating System :: POSIX',
-        'Operating System :: OS Independent',
-        'Programming Language :: Python :: 3',
-        'Natural Language :: English',
-        # 'Topic :: Scientific/Engineering :: Artificial Intelligence'
-        # 'Topic :: Software Development :: Bug Tracking',
-    ]
-
-
 setup(name='streamserver',
       version='0.4.0',
       description='Server to stream multi-part images over HTTP',
