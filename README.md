@@ -2,11 +2,6 @@
 
 ## Install:
 ```
-pip install git+ssh://git@bitbucket-server.alexandra.dk:7999/~soren.rasmussen/streamserver.git
-```
-or
-
-```
 pip install streamserver
 ```
 
@@ -30,8 +25,7 @@ cap.release()
 ```
 or
 ```
-ss-imageio
+ss-cv2
 ```
-
 ## TODO:
-* Multiple streams on same server
+- [ ] Multiple streams on same server?

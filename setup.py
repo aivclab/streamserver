@@ -1,55 +1,36 @@
-from setuptools import setup, find_packages
+def python_version_check():
+    import sys
+
+    assert sys.version_info.major == 3 and sys.version_info.minor >= 6, (
+        f"This project is utilises language features only present Python 3.6 and greater. "
+        f"You are running {sys.version_info}."
+    )
 
 
-def get_requirements():
-    requirements_out = []
-    with open('requirements.txt') as f:
-        requirements = f.readlines()
+python_version_check()
+import pathlib
+import re
 
-        for requirement in requirements:
-            requirements_out.append(requirement.strip())
+from setuptools import setup
 
-    return requirements_out
-
-
-def get_entry_points():
-    return {
-        'console_scripts': [
-            'ss-run = streamserver:run_streamserver',
-            'ss-cv2 = streamserver.samples.ss_cv2:main',
-            'ss-imageio = streamserver.samples.ss_imageio:main'
-        ]
-    }
+with open(
+    pathlib.Path(__file__).parent / "streamserver" / "__init__.py", "r"
+) as project_init_file:
+    content = project_init_file.read()
+    # get version string from module
+    version = re.search(r"__version__ = ['\"]([^'\"]*)['\"]", content, re.M).group(1)
+    project_name = re.search(
+        r"PROJECT_NAME = ['\"]([^'\"]*)['\"]", content, re.M
+    ).group(1)
 
 
-def get_readme():
-    with open('README.md') as f:
-        return f.read()
-
-
-def get_keyword():
-    with open('KEYWORDS.md') as f:
-        return f.read()
-
-
-def get_license():
-    return 'Apache License, Version 2.0'
-
-
-setup(name='streamserver',
-      version='0.4.0',
-      description='Server to stream multi-part images over HTTP',
-      author='Soeren Rasmussen',
-      package_data={'': ['viewer_mini.html']},
-      include_package_data=True,
-      python_requires='>=3',
-      packages=find_packages(),
-      install_requires=get_requirements(),
-      entry_points=get_entry_points(),
-      license=get_license(),
-      classifiers=get_classifiers(),
-      long_description_content_type='text/markdown',
-      long_description=get_readme(),
-      url='',
-      download_url=''
-      )
+setup(
+    name=project_name,
+    version=version,
+    description="Server to stream multi-part images over HTTP",
+    author="Soeren Rasmussen",
+    packages=["streamserver"],
+    install_requires=["numpy", "imageio"],
+    package_data={"": ["viewer_mini.html"]},
+    include_package_data=True,
+)
