@@ -23,7 +23,6 @@ with open(
         r"PROJECT_NAME = ['\"]([^'\"]*)['\"]", content, re.M
     ).group(1)
 
-
 setup(
     name=project_name,
     version=version,
