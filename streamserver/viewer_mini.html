@@ -1,1 +1,39 @@
-<html><head><script>var url='{URL}';var timer;var timerrunning=false;disconnected=function(){document.getElementById('status').innerText='Disconnected';document.getElementById('status').style='color:red';if(timerrunning==false){timerrunning=true;timer=setInterval(connect,250);}};connected=function(){clearInterval(timer);timerrunning=false;document.getElementById('image').src=url;document.getElementById('status').innerText='Connected';document.getElementById('status').style='color:green';};var xhr=new XMLHttpRequest();xhr.onreadystatechange=function(){var rst=xhr.readyState;if(rst==2){connected();}else if(rst==4){disconnected();}};connect=function(){xhr.open('GET',url+'?q=ping',true);xhr.send();};</script> </head><body style="background-color:black;" onload="connect();timerrunning=true;timer=setInterval(connect,200);"><center><span style='font-family: monospace;font-weight: bold;'><span id='status' style='color:yellow;'>Initializing</span></span><br><img id='image' src=''></center></body></html>
+<html>
+  <head>
+    <script>var url = '{URL}';
+    var timer;
+    var timerrunning = false;
+    disconnected = function () {
+        document.getElementById('status').innerText = 'Disconnected';
+        document.getElementById('status').style = 'color:red';
+        if (timerrunning == false) {
+            timerrunning = true;
+            timer = setInterval(connect, 250);
+        }
+    };
+    connected = function () {
+        clearInterval(timer);
+        timerrunning = false;
+        document.getElementById('image').src = url;
+        document.getElementById('status').innerText = 'Connected';
+        document.getElementById('status').style = 'color:green';
+    };
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function () {
+        var rst = xhr.readyState;
+        if (rst == 2) {
+            connected();
+        } else if (rst == 4) {
+            disconnected();
+        }
+    };
+    connect = function () {
+        xhr.open('GET', url + '?q=ping', true);
+        xhr.send();
+    };</script>
+  </head>
+  <body style="background-color:black;" onload="connect();timerrunning=true;timer=setInterval(connect,200);">
+    <center><span style='font-family: monospace;font-weight: bold;'><span id='status' style='color:yellow;'>Initializing</span></span><br><img
+        id='image' src=''></center>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-# multipart image HTTP streaming server.
+# Ḿultipart Image HTTP Streaming Server.
 
 ## Install:
 ```
@@ -25,5 +25,4 @@ cap.release()
 ```
 
 ## TODO:
-* HTTPS?
-* Multiple streams on same server?
+- [ ] Multiple streams on same server?
