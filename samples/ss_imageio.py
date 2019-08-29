@@ -4,7 +4,7 @@ from contextlib import suppress
 
 from imageio.core import Format
 
-__author__ = "cnheider"
+__author__ = "Christian Heider Nielsen"
 __doc__ = r"""Broken at the moment"""
 
 

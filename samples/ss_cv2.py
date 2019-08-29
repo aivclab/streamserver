@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from contextlib import suppress
 
-__author__ = "cnheider"
+__author__ = "Christian Heider Nielsen"
 
 
 def main():
