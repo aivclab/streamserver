@@ -59,22 +59,6 @@ def get_license():
     return "Apache License, Version 2.0"
 
 
-def get_classifiers():
-    return [
-        "Development Status :: 4 - Beta",
-        "Environment :: Console",
-        "Intended Audience :: End Users/Desktop",
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: MacOS :: MacOS X",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: POSIX",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3",
-        "Natural Language :: English",
-    ]
-
-
 setup(
     name=project_name,
     version=version,
@@ -87,7 +71,6 @@ setup(
     install_requires=get_requirements(),
     entry_points=get_entry_points(),
     license=get_license(),
-    classifiers=get_classifiers(),
     long_description_content_type="text/markdown",
     long_description=get_readme(),
     url="",
