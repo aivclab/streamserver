@@ -1,4 +1,4 @@
-docs/build/
+build/
 dist/
 .vscode
 .installed.cfg
@@ -12,14 +12,9 @@ __pycache__/
 
 venv/
 *.db
-*.pb
-*.onnx
-
-classification_report.pdf
-classification_report.html
 
 *.log
-
+#.idea
 
 # Byte-compiled / optimized / DLL files
 *$py.class
@@ -43,8 +38,6 @@ sdist/
 var/
 wheels/
 *.egg
-.idea
-.pytest_cache
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -118,26 +111,13 @@ ENV/
 *.model
 *.model.py
 
+
+#.idea
 .ropeproject
 .pyre
 logs/*.csv
 
-*[Ee]xcluded.*
-*[Ee]xclude.*
-*[Ee]xcluded*
-*[Ee]xclude*
 
-
-# Android
-
-*.iml
-.gradle
-/local.properties
-/.idea/workspace.xml
-/.idea/libraries
-.idea/modules.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.ipynb_checkpoints/
+exclude/
+cert.key
+cert.pem

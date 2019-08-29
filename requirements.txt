@@ -1,2 +1,4 @@
 numpy
 imageio
+Pillow
+IPython

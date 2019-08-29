@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from streamserver import PROJECT_APP_PATH
 
-__author__ = "sorenrasmussenai"
+__author__ = "Soeren Rasmussen"
 __doc__ = r"""
            """
 
+import ssl as libssl
+import sys
+
+import urllib.parse
+from pathlib import Path
+
+import numpy as np
 import contextlib
 import io
 import os
@@ -14,9 +22,7 @@ import socket
 import threading
 import time
 import urllib.parse
-
 import imageio
-import numpy
 
 try:
     import IPython.display
@@ -28,33 +34,32 @@ except:
 __all__ = ["StreamServer"]
 
 
+def generate_openssl_ssl_cert(base_path, key_path, pem_path):
+    ret = os.system(
+        f'openssl req -nodes -new -x509 -keyout {key_path} -out {pem_path} -subj "/" -days 10000'
+    )
+    assert ret == 0, "Could not create SSL cert"
+    print(
+        f"*** Created self-signed SSL cert in {base_path}. Consider swapping it with a real cert."
+    )
+
+
 class StreamServer:
     def __init__(
         self,
         host=None,
         port=5000,
+        ssl=False,
         next_free_port=True,
         nb_output=True,
-        printaddr=True,
+        print_addr=True,
         secret=None,
         fmt="bgr",
         encoder="JPEG",
         JPEG_quality=75,
         PNG_compression=1,
+        cache_path=PROJECT_APP_PATH.user_cache,
     ):
-        """
-
-    :param host:
-    :param port:
-    :param next_free_port:
-    :param nb_output:
-    :param printaddr:
-    :param secret:
-    :param fmt:
-    :param encoder:
-    :param JPEG_quality:
-    :param PNG_compression:
-    """
         if host is None:
             self.host = "localhost"
         elif host == "GLOBAL":
@@ -75,12 +80,26 @@ class StreamServer:
         self.JPEG_quality = JPEG_quality
         self.PNG_compression = PNG_compression
         self.nb_output = nb_output
-        self.printaddr = printaddr
+        self.print_addr = print_addr
+
+        self.ssl = ssl
+        if self.ssl:
+
+            key_path = cache_path / "cert.key"
+            pem_path = cache_path / "cert.pem"
+            if (key_path.exists() == False) or (pem_path.exists() == False):
+                generate_openssl_ssl_cert(cache_path, key_path, pem_path)
+
+            self.ssl_context = libssl.SSLContext(libssl.PROTOCOL_SSLv23)
+            self.ssl_context.load_cert_chain(pem_path, key_path)
 
         self.url = ""
 
         self.__ev = threading.Event()
-        self.__frame = b""
+        self.__ev.clear()
+
+        self.set_frame(np.zeros((1, 1, 3), dtype=np.uint8))
+        #        self.__frame = b''
         self.__terminate = True
 
     def __filter_str__(self, s):
@@ -131,7 +150,12 @@ class StreamServer:
             self.sock.close()
             self.sock = None
             raise IOError("No port available.")
-        self.url = "http://" + self.host + ":" + str(self.port) + "/" + self.secret
+        if self.ssl:
+            self.ssl_sock = self.ssl_context.wrap_socket(self.sock, server_side=True)
+            self.url = "https://" + self.host + ":" + str(self.port) + "/" + self.secret
+        else:
+            self.ssl_sock = self.sock
+            self.url = "http://" + self.host + ":" + str(self.port) + "/" + self.secret
 
     def start(self):
         self.__terminate = False
@@ -139,13 +163,14 @@ class StreamServer:
         self.server_thread = threading.Thread(target=self.listen, daemon=True)
         self.server_thread.start()
 
-        if self.printaddr:
+        if self.print_addr:
             print(f"Serving at {self.url}?q=viewer")
         if self.nb_output:
-            if __IPYTHON_DISPLAY__ == False:
+            if not __IPYTHON_DISPLAY__:
                 print("Warning: IPython.display not available.")
             img = IPython.display.Image(url=self.url)
-            IPython.display.display(img)
+            if bool(getattr(sys, "ps1", sys.flags.interactive)):
+                IPython.display.display(img)
 
     def stop(self):
         self.__terminate = True
@@ -157,39 +182,46 @@ class StreamServer:
         self.connection_threads = []
 
     def listen(self):
-        self.sock.listen(5)
+        self.ssl_sock.listen(5)
         while not self.__terminate:
             try:
-                conn, address = self.sock.accept()
+                conn, address = self.ssl_sock.accept()
             except socket.timeout:
                 continue
             conn.settimeout(None)
-            t = threading.Thread(
-                target=self.connection,
-                args=(conn, address, threading.currentThread()),
-                daemon=True,
+            self.connection_threads = [
+                t for t in self.connection_threads if t.is_alive()
+            ]
+            self.connection_threads.append(
+                threading.Thread(
+                    target=self.connection,
+                    args=(conn, address, threading.currentThread()),
+                    daemon=True,
+                )
             )
-            self.connection_threads.append(t)
-            t.start()
-        self.sock.close()
-        self.sock = None
+            self.connection_threads[-1].start()
 
-    def send(self, conn, data):
-        data = bytes(data)
-        data_len = len(data)
-        counter = 0
-        while counter < data_len:
+        self.ssl_sock.close()
+        #        self.sock.close()
+        self.sock = None
+        self.ssl_sock = None
+
+    def send(self, conn, d):
+        d = bytes(d)
+        l = len(d)
+        c = 0
+        while c < l:
             try:
-                n = conn.send(data[counter:])
+                n = conn.send(d[c:])
                 if n == 0:
                     raise IOError("Connection broken")
-            except Exception as e:
+            except:
                 return False
-            counter += n
+            c += n
         return True
 
     def set_frame(self, frame, fmt=None):
-        if type(frame) == numpy.ndarray:
+        if isinstance(frame, np.ndarray):
             if fmt is None:
                 fmt = self.fmt
 
@@ -220,13 +252,18 @@ class StreamServer:
         self.__ev.clear()
 
     def connection(self, conn, address, parent):
-        bufsize = 1024
+        buffer_size = 1024
 
         # Read request
         request = b""
         while parent.is_alive():
             try:
-                request += conn.recv(bufsize)
+                recv = conn.recv(buffer_size)
+                if len(recv) > 0:
+                    request += recv
+                else:
+                    conn.close()
+                    return
             except:
                 conn.close()
                 return
@@ -237,6 +274,9 @@ class StreamServer:
         # regex = re.compile('^GET \/'+re.escape(self.secret)+'((\?[a-zA-Z]*(=[a-zA-Z0-9]*)? )| )HTTP\/1\.(
         # 0|1)$')
         # if not regex.match(request[0].decode()):
+        if len(request) == 0:
+            conn.close()
+            return
         pr = urllib.parse.urlparse(request[0][5:-9].decode())
         if (
             (request[0][:5] != b"GET /")
@@ -256,13 +296,15 @@ class StreamServer:
         if query == "ping":
             header = (
                 "HTTP/1.0 200 OK\r\n"
-                + "Content-Type: text/html\r\n"
-                + "Access-Control-Allow-Origin: *\r\n"
-                + "Connection: keep-alive\r\n\r\n"
+                "Content-Type: text/html\r\n"
+                "Access-Control-Allow-Origin: *\r\n"
+                "Connection: keep-alive\r\n\r\n"
             )
             ret = self.send(conn, header.encode())
             while ret and parent.is_alive():
                 ret = self.send(conn, b"pong\r\n")
+                if ret == 0:
+                    break
                 time.sleep(0.25)
             conn.close()
             return
@@ -270,11 +312,11 @@ class StreamServer:
         elif query == "viewer":
             header = (
                 "HTTP/1.0 200 OK\r\n"
-                + "Content-Type: text/html\r\n"
-                + "Connection: close\r\n\r\n"
+                "Content-Type: text/html\r\n"
+                "Connection: close\r\n\r\n"
             )
             self.send(conn, header.encode())
-            path = os.path.join(os.path.dirname(__file__), "viewer_mini.html")
+            path = Path(os.path.dirname(__file__)) / "viewer_mini.html"
             with open(path, "r") as f:
                 html = f.read()
             html = html.replace("{URL}", self.url)
@@ -286,9 +328,10 @@ class StreamServer:
             # Send header
             header = (
                 "HTTP/1.0 200 OK\r\n"
-                + "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n"
-                + "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, "
-                "max-age=0\r\n" + "Connection: close\r\n\r\n"
+                "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n"
+                "Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, "
+                "max-age=0\r\n"
+                "Connection: close\r\n\r\n"
             )
             ret = self.send(conn, header.encode())
             if not ret:
@@ -296,10 +339,15 @@ class StreamServer:
                 return
 
             # Contents
-            frame_header = b"\r\n--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+            frame_header = str.encode(
+                f"\r\n--frame\r\nContent-Type: image/{self.encoder.lower()}\r\n\r\n"
+            )
             ret &= self.send(conn, frame_header)
+
             while ret and parent.is_alive():
-                if self.__ev.wait(0.25):
+                if self.__ev.wait(1) and ret:
+                    ret &= self.send(conn, self.__frame + frame_header)
+                else:
                     ret &= self.send(conn, self.__frame + frame_header)
             conn.close()
             return

@@ -1,8 +1,8 @@
-# Ḿultipart Image HTTP Streaming Server.
+# Multipart Image HTTP Streaming Server.
 
 ## Install:
 ```
-pip install git+ssh://git@bitbucket-server.alexandra.dk:7999/~soren.rasmussen/streamserver.git
+pip install streamserver
 ```
 
 ## Example:
@@ -23,6 +23,9 @@ with streamserver.StreamServer(JPEG_quality=75,host='localhost',port=5000) as ss
             break
 cap.release()
 ```
-
+or
+```
+ss-cv2
+```
 ## TODO:
 - [ ] Multiple streams on same server?
