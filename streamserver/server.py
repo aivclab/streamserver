@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from streamserver import PROJECT_APP_PATH
-
 __author__ = "Soeren Rasmussen"
 __doc__ = r"""
            """
+__version__ = "0.5.0"
 
 import ssl as libssl
 import sys
@@ -31,7 +30,7 @@ try:
 except:
     __IPYTHON_DISPLAY__ = False
 
-__all__ = ["StreamServer"]
+__all__ = ["StreamServer", "__version__", "__author__"]
 
 
 def generate_openssl_ssl_cert(base_path, key_path, pem_path):
@@ -58,7 +57,7 @@ class StreamServer:
         encoder="JPEG",
         JPEG_quality=75,
         PNG_compression=1,
-        cache_path=PROJECT_APP_PATH.user_cache,
+#        cache_path=PROJECT_APP_PATH.user_cache,
     ):
         if host is None:
             self.host = "localhost"
@@ -83,15 +82,15 @@ class StreamServer:
         self.print_addr = print_addr
 
         self.ssl = ssl
-        if self.ssl:
-
-            key_path = cache_path / "cert.key"
-            pem_path = cache_path / "cert.pem"
-            if (key_path.exists() == False) or (pem_path.exists() == False):
-                generate_openssl_ssl_cert(cache_path, key_path, pem_path)
-
-            self.ssl_context = libssl.SSLContext(libssl.PROTOCOL_SSLv23)
-            self.ssl_context.load_cert_chain(pem_path, key_path)
+#        if self.ssl:
+#
+#            key_path = cache_path / "cert.key"
+#            pem_path = cache_path / "cert.pem"
+#            if (key_path.exists() == False) or (pem_path.exists() == False):
+#                generate_openssl_ssl_cert(cache_path, key_path, pem_path)
+#
+#            self.ssl_context = libssl.SSLContext(libssl.PROTOCOL_SSLv23)
+#            self.ssl_context.load_cert_chain(pem_path, key_path)
 
         self.url = ""
 
@@ -150,12 +149,12 @@ class StreamServer:
             self.sock.close()
             self.sock = None
             raise IOError("No port available.")
-        if self.ssl:
-            self.ssl_sock = self.ssl_context.wrap_socket(self.sock, server_side=True)
-            self.url = "https://" + self.host + ":" + str(self.port) + "/" + self.secret
-        else:
-            self.ssl_sock = self.sock
-            self.url = "http://" + self.host + ":" + str(self.port) + "/" + self.secret
+#        if self.ssl:
+#            self.ssl_sock = self.ssl_context.wrap_socket(self.sock, server_side=True)
+#            self.url = "https://" + self.host + ":" + str(self.port) + "/" + self.secret
+#        else:
+        self.ssl_sock = self.sock
+        self.url = "http://" + self.host + ":" + str(self.port) + "/" + self.secret
 
     def start(self):
         self.__terminate = False
