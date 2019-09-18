@@ -2,7 +2,7 @@
 
 ## Install:
 ```
-pip install streamserver
+pip install git+git://github.com/aivclab/streamserver.git
 ```
 
 ## Example:
@@ -22,10 +22,6 @@ with streamserver.StreamServer(JPEG_quality=75,host='localhost',port=5000) as ss
         if wk == ord('q'):
             break
 cap.release()
-```
-or
-```
-ss-cv2
 ```
 ## TODO:
 - [ ] Multiple streams on same server?
