@@ -8,5 +8,6 @@ setup(
     package_data={"": ["viewer_mini.html"]},
     include_package_data=True,
     python_requires=">=3",
+    packages=find_packages(),
     install_requires=['numpy','imageio']
 )
